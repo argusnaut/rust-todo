@@ -11,6 +11,7 @@ struct Task {
     description: String,
     done: bool,
     creation_date: String,
+    removed: bool
 }
 
 impl Task {
@@ -20,6 +21,7 @@ impl Task {
             description: description.to_string(),
             done: false,
             creation_date: Local::now().to_string(),
+            removed: false
         }
     }
 
@@ -46,8 +48,11 @@ fn repeat_char(c: char, count: usize) -> String {
 
 fn list_tasks(tasks: &[Task]) {
     println!("Index | Done | Description");
-    println!("{} | {} | {}", repeat_char('-', 5), repeat_char('-', 6), repeat_char('-', 11));
+    println!("{} | {} | {}", repeat_char('-', 5), repeat_char('-', 4), repeat_char('-', 11));
     for (index, task) in tasks.iter().enumerate() {
+        if task.removed {
+            continue;
+        }
         task.display(index);
     }
     println!();
@@ -71,6 +76,14 @@ fn finish_task(tasks: &mut [Task], index: usize) {
     };
 }
 
+fn remove_task(tasks: &mut [Task], index: usize) {
+    let remove_task = tasks.get_mut(index);
+    match remove_task {
+        Some(task) => task.removed = true,
+        None => eprintln!("Task not found")
+    };
+}
+
 fn menu(tasks: &mut Vec<Task>, path: &PathBuf) {
     println!("/{}\\", repeat_char('=', 40));
     println!("|{:^38}|", "Welcome to the Rust Todo list project");
@@ -85,6 +98,7 @@ fn menu(tasks: &mut Vec<Task>, path: &PathBuf) {
         println!("1. List tasks");
         println!("2. Add task");
         println!("3. Finish task");
+        println!("4. Remove task");
         println!("X. Exit");
 
         stdin()
@@ -141,6 +155,42 @@ fn menu(tasks: &mut Vec<Task>, path: &PathBuf) {
                     let vec_index = index - 1;
                     if (0..tasks.len()).contains(&vec_index) {
                         finish_task(tasks, vec_index);
+                        println!("Task finished successfully");
+                    } else {
+                        println!("Please choose an existing task");
+                        continue;
+                    }
+
+
+                    break;
+                }
+                write_tasks(tasks, path);
+            }
+            "4" => {
+                loop {
+                    let mut index_str: String = String::new();
+                    list_tasks(tasks);
+
+                    println!("Please select a task by the index:");
+
+                    stdin().read_line(&mut index_str).expect("Failed to read line");
+                    if index_str.trim().is_empty() {
+                        println!("Please select a task by index");
+                        continue;
+                    }
+
+                    let index: usize = match index_str.trim().parse() {
+                        Ok(num) => num,
+                        Err(_) => {
+                            println!("Please insert a number");
+                            continue;
+                        }
+                    };
+
+                    let vec_index = index - 1;
+                    if (0..tasks.len()).contains(&vec_index) {
+                        remove_task(tasks, vec_index);
+                        println!("Task removed successfully");
                     } else {
                         println!("Please choose an existing task");
                         continue;
@@ -158,6 +208,7 @@ fn menu(tasks: &mut Vec<Task>, path: &PathBuf) {
 }
 
 fn main() {
+    // TODO: Implement a DB for Data Storage
     let mut path = home_dir().expect("Failed to get home directory").join(".argus");
     fs::create_dir_all(&path).expect("Failed to create directory");
     path = path.join("data.json");
